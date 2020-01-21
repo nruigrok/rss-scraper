@@ -58,4 +58,6 @@ if __name__ == '__main__':
     conn = create_connection()
     logging.info(f"Retrieving articles from {url} ...")
     feed = feedparser.parse(url)
+    if feed.bozo:
+        raise feed.bozo_exception
     add_to_database(feed, conn)
