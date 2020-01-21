@@ -6,7 +6,7 @@ import time
 
 import feedparser
 
-Article = collections.namedtuple("Article", ["id", "title", "link", "summary", "medium", "author", "date", "licence"])
+Article = collections.namedtuple("Article", ["id", "title", "link", "medium", "author", "date", "licence"])
 DATABASE = "rss.db"
 
 
@@ -34,9 +34,8 @@ def get_entries(feed):
         article_medium = entry.source['title']
         article_author = getattr(entry, 'author', None)
         article_date = time.strftime('%Y-%m-%dT%H:%M:%SZ', entry.published_parsed)
-        article_summary = getattr(entry, 'description', None)
         article_licence = entry.m_name
-        data = Article(article_id, article_title, article_link, article_summary, article_medium, article_author,
+        data = Article(article_id, article_title, article_link, article_medium, article_author,
                        article_date, article_licence)
         data2.append(data)
     return data2
@@ -49,7 +48,7 @@ def add_to_database(feed, conn):
     logging.info(f"will insert {len(to_insert)} extra articles to database")
     with conn:
         cursor = conn.cursor()
-        cursor.executemany('insert into articles (article_id, title, link, summary, medium, author, date, licence) VALUES (?,?,?,?,?,?,?,?)', to_insert)
+        cursor.executemany('insert into articles (article_id, title, link, medium, author, date, licence) VALUES (?,?,?,?,?,?,?)', to_insert)
 
 
 if __name__ == '__main__':
@@ -59,5 +58,4 @@ if __name__ == '__main__':
     conn = create_connection()
     logging.info(f"Retrieving articles from {url} ...")
     feed = feedparser.parse(url)
-    with conn:
-        add_to_database(feed, conn)
+    add_to_database(feed, conn)
