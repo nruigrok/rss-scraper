@@ -1,3 +1,5 @@
 feedparser
 lxml
 requests
+amcatclient
+cssselect

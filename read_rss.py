@@ -6,12 +6,9 @@ import time
 
 import feedparser
 
+from rsslib import create_connection
+
 Article = collections.namedtuple("Article", ["id", "title", "link", "medium", "author", "date", "licence"])
-DATABASE = "rss.db"
-
-
-def create_connection():
-    return sqlite3.connect(DATABASE)
 
 
 def get_db_ids(conn):
@@ -52,7 +49,7 @@ def add_to_database(feed, conn):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
+    logging.basicConfig(level=logging.INFO, format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
 
     url = sys.argv[1]
     conn = create_connection()
