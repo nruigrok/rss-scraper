@@ -9,9 +9,9 @@ import requests
 from rsslib import create_connection
 
 
-def get_articles(conn):
+def get_articles(conn, where="status is null"):
     cur = conn.cursor()
-    cur.execute("SELECT * FROM articles where status is null")
+    cur.execute(f"SELECT * FROM articles where {where}")
     rows =[]
     colnames = [x[0] for x in cur.description]
     Row = namedtuple("Row", colnames)
@@ -78,6 +78,8 @@ if __name__ == '__main__':
     parser.add_argument("project", help="AmCAT Project ID", type=int)
     parser.add_argument("articleset", help="AmCAT Articleset ID", type=int)
     parser.add_argument("--verbose", "-v", help="Verbose (debug) output", action="store_true", default=False)
+    parser.add_argument("--article", "-a", help="Scrape a specific article ID", type=int)
+
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
@@ -88,10 +90,12 @@ if __name__ == '__main__':
 
     logging.info(f"Connecting to AmCAT server {args.hostname}")
     c = AmcatAPI(args.hostname)
-
-    articles = get_articles(conn)
+    if args.article:
+        articles = get_articles(conn, where=f"article_id = {args.article}")
+    else:
+        articles = get_articles(conn)
     for i, row in enumerate(articles):
-        logging.info(f"[{i}/{len(articles)}] Scraping article {row.article_id} from {row.link}")
+        logging.info(f"[{i+1}/{len(articles)}] Scraping article {row.article_id} from {row.link}")
         try:
             text = scrape_text(session, row.link)
         except ArticleNotFound as e:
