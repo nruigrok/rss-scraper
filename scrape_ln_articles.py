@@ -11,7 +11,7 @@ from rsslib import create_connection
 
 def get_articles(conn):
     cur = conn.cursor()
-    cur.execute("SELECT * FROM articles where public_link is null and status is null")
+    cur.execute("SELECT * FROM articles where status is null")
     rows =[]
     colnames = [x[0] for x in cur.description]
     Row = namedtuple("Row", colnames)
@@ -33,23 +33,40 @@ def login(username, password):
     return s
 
 
+class ArticleNotFound(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(message)
+
+
+class PublicLink(Exception):
+    def __init__(self, link):
+        self.link = link
+        super().__init__(link)
+
+
 def scrape_text(session, url):
     res = session.get(url)
     if not res.url.startswith("https://www.newsdesk.lexisnexis.com"):
         # Not a LN url
-        return None, res.url
+        raise PublicLink(res.url)
     page = html.fromstring(res.text)
     text = page.cssselect("section.article_extract *")
     if not text:
-        open("/tmp/check.html", "wb").write(res.content)
-        raise Exception(f"Could not scrape article from {url} -> {res.url}, written html to /tmp/check.html")
+        anf = page.cssselect(".article_not_found")
+        if anf:
+            message = "\n".join(x.text_content() for x in anf)
+            raise ArticleNotFound(message.strip())
+        else:
+            open("/tmp/check.html", "wb").write(res.content)
+            raise Exception(f"Could not scrape article from {url} -> {res.url}, written html to /tmp/check.html")
     # add paragraph separators to <br/> tags
     for p in text:
         for br in p.xpath(".//br"):
             br.tail = "\n\n" + br.tail if br.tail else "\n\n"
     text = "\n\n".join(p.text_content() for p in text)
     text = re.sub("\n\n\s*", "\n\n", text)
-    return text, res.url
+    return text
 
 
 if __name__ == '__main__':
@@ -72,21 +89,29 @@ if __name__ == '__main__':
     logging.info(f"Connecting to AmCAT server {args.hostname}")
     c = AmcatAPI(args.hostname)
 
-    for row in get_articles(conn):
-        logging.info(f"Scraping article {row.article_id} from {row.link}")
-        text, url = scrape_text(session, row.link)
-        if not text:
-            logging.info(f"Article {row.article_id} was public: {url}")
-            cur = conn.cursor()
-            cur.execute("Update articles set status = 'public', public_link=? where article_id = ?", [url, row.article_id])
-            continue
+    articles = get_articles(conn)
+    for i, row in enumerate(articles):
+        logging.info(f"[{i}/{len(articles)}] Scraping article {row.article_id} from {row.link}")
+        try:
+            text = scrape_text(session, row.link)
+        except ArticleNotFound as e:
+            logging.info(f"Article not found: {e.message}")
+            with conn:
+                cur = conn.cursor()
+                cur.execute("Update articles set status = 'notfound', public_link=? where article_id = ?",
+                            [e.message, row.article_id])
+        except PublicLink as e:
+            logging.info(f"Article {row.article_id} was public: {e.link}")
+            with conn:
+                cur = conn.cursor()
+                cur.execute("Update articles set status = 'public', public_link=? where article_id = ?", [e.link, row.article_id])
+        else:
+            article = {"text": text, "title": row.title, "ln_id": row.article_id, "publisher": row.medium,
+                       "author": row.author, "date": row.date, "url": row.public_link}
+            article = {k: v for (k, v) in article.items() if v is not None}
+            logging.info(f"Uploading article {row.article_id} to amcat project {args.project} set {args.articleset} (headline: {row.title}")
 
-        article = {"text": text, "title": row.title, "ln_id": row.article_id, "publisher": row.medium,
-                   "author": row.author, "date": row.date, "url": row.public_link}
-        article = {k: v for (k, v) in article.items() if v is not None}
-        logging.info(f"Uploading article {row.article_id} to amcat project {args.project} set {args.articleset} (headline: {row.title}")
-
-        c.create_articles(args.project, args.articleset, [article])
-
-        cur = conn.cursor()
-        cur.execute("Update articles set status = 'done' where article_id = ?", [row.article_id])
+            c.create_articles(args.project, args.articleset, [article])
+            with conn:
+                cur = conn.cursor()
+                cur.execute("Update articles set status = 'done' where article_id = ?", [row.article_id])
