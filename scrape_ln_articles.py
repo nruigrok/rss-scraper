@@ -94,6 +94,7 @@ if __name__ == '__main__':
         articles = get_articles(conn, where=f"article_id = {args.article}")
     else:
         articles = get_articles(conn)
+
     for i, row in enumerate(articles):
         logging.info(f"[{i+1}/{len(articles)}] Scraping article {row.article_id} from {row.link}")
         try:
