@@ -1,7 +1,6 @@
 import logging
 import re
 from collections import namedtuple
-
 from amcatclient import AmcatAPI
 from lxml import html
 import requests
@@ -58,13 +57,18 @@ def scrape_text(session, url):
             message = "\n".join(x.text_content() for x in anf)
             raise ArticleNotFound(message.strip())
         else:
-            open("/tmp/check.html", "wb").write(res.content)
-            raise Exception(f"Could not scrape article from {url} -> {res.url}, written html to /tmp/check.html")
+            text = "-"
+           # open("/tmp/check.html", "wb").write(res.content)
+           # raise Exception(f"Could not scrape article from {url} -> {res.url}, written html to /tmp/check.html")
     # add paragraph separators to <br/> tags
     for p in text:
-        for br in p.xpath(".//br"):
-            br.tail = "\n\n" + br.tail if br.tail else "\n\n"
-    text = "\n\n".join(p.text_content() for p in text)
+        text = "\n\n".join(p for p in text)
+   #     if p.xpath(".//br"):
+    #        for br in p.xpath(".//br"):
+     #           br.tail = "\n\n" + br.tail if br.tail else "\n\n"
+      #          text = "\n\n".join(p.text_content() for p in text)
+       # else:
+        #    text = "\n\n".join(p.text_content() for p in text)
     text = re.sub("\n\n\s*", "\n\n", text)
     return text
 
@@ -72,6 +76,7 @@ def scrape_text(session, url):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument("database", help="Name database where articles are stored")
     parser.add_argument("nd_username", help="Newsdesk username")
     parser.add_argument("nd_password", help="Newsdesk password")
     parser.add_argument("hostname", help="AmCAT Server hostname")
@@ -84,7 +89,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
 
-    conn = create_connection()
+    conn = create_connection(args.database)
     logging.info("Logging in to LN")
     session = login(args.nd_username, args.nd_password)
 

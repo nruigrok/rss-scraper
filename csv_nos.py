@@ -15,6 +15,14 @@ import sys
 
 
 
+def polish(textstring):
+    #This function polishes the full text of the articles - it separated the lead from the rest by ||| and separates paragraphs and subtitles by ||.
+    lines = textstring.strip().split('\n')
+    lead = lines[0].strip()
+    rest = '||'.join( [l.strip() for l in lines[1:] if l.strip()] )
+    if rest: result = lead + ' ||| ' + rest
+    else: result = lead
+    return result.strip()
 
 
 def get_css(tree, selection, text=True, error=True):
@@ -26,39 +34,50 @@ def get_css(tree, selection, text=True, error=True):
     return res[0]
 
 
+#def get_link(csv):
+ #   with open(csv, 'r') as csv_file:
+  #      csv_reader = csv.DictReader(csv_file, delimiter=';')
+   #     urls =[]
+    #    for row in csv_reader:
+     #       url = row['url']
+      #      urls.append(url)
+       #     print(urls)
+       # return(urls)
+
+
 def scrape_article(url):
     try:
         page = requests.get(url)
     except:
         logging.error(f"no url {url}")
-        return
     try:
         tree = html.fromstring(page.text)
     except:
         logging.error("HTML tree cannot be parsed")
-        return
     try:
-        title = tree.cssselect('h1.title.fluid')
-        title = title[0].text_content()
-    except (ValueError, IndexError, KeyError) as e:
-        logging.error("title cannot be parsed")
-        return
-    #lead = tree.cssselect("div.block-content.excerpt > p")
-    text = tree.cssselect("div.block-content > p")
+        title = tree.xpath('//h1')[0].text
+    except:
+        title = ""
+        logging.warning("Could not parse article title")
+    text = tree.cssselect("p.text_3v_J6Y0G")
+    if not text:
+        text = tree.cssselect("header.liveblog-header")
+        if not text:
+            text = tree.cssselect("div.article_textwrap")
     text = "\n\n".join(p.text_content() for p in text)
     text = re.sub("\n\n\s*", "\n\n", text)
-    time = tree.xpath('//span[@class="pubdate large"]')
-    try:
-        time2 = time[0].text_content()
-    except (IndexError, ValueError) as e:
-        logging.error("Time cannot be parsed")
-        return
+    text = polish(text)
+    time_spans = tree.cssselect("span.published_WzR_NC-U time")
+    if not time_spans:
+        time_spans = tree.cssselect("span.liveblog-header__meta-supplychannel-sub-title time")
+    time = time_spans[0].get("datetime")
+    #date =time.get("datetime")
     locale.setlocale(locale.LC_ALL, 'nl_NL.UTF-8')
-    date = datetime.strptime(time2, "%d %B %Y %H:%M")
+    date = datetime.strptime(time[:19], "%Y-%m-%dT%H:%M:%S")
     return {"headline": title,
             "text": text,
             "date": date,
-            "medium": "nu (www)",
+            "medium": "nos (www)",
             "url": url}
 
 
@@ -68,7 +87,7 @@ def get_links(f):
         urls = []
         for row in csv_reader:
             url = row['url']
-            if url.startswith("https://www.nu.nl/"):
+            if url.startswith("https://nos.nl/artikel"):
                 urls.append(url)
         return(urls)
 
@@ -78,11 +97,10 @@ from amcatclient import AmcatAPI
 c = AmcatAPI("https://amcat.nl")
 
 
-links = get_links('nu2.csv')
+links=get_links('nos2.csv')
 links = set(links)
 for l in links:
     print(l)
     a = scrape_article(l)
     if a is not None:
         c.create_articles(2094, 80427, [a])
-

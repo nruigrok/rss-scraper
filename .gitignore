@@ -133,3 +133,7 @@ rss.db
 
 # pycharm project
 .idea
+
+.~*#
+
+data/

@@ -36,7 +36,7 @@ def get_css(tree, selection, text=True, error=True):
 
 def get_links(conn):
     cur = conn.cursor()
-    cur.execute("SELECT link FROM articles where medium ='Metro (NL)' and status='public'")
+    cur.execute("SELECT link FROM articles where medium ='nos.nl'")
     rows = list(cur.fetchall())
     db_links = []
     for row in rows:
@@ -80,15 +80,17 @@ def scrape_article(url):
             "medium": "nos (www)",
             "url": url}
 
-conn = create_connection()
+db = "landelijkemedia.db"
+conn = create_connection(db)
 links = get_links(conn)
+print(links)
 
 
 from amcatclient import AmcatAPI
 c = AmcatAPI("http://vu.amcat.nl")
 
 for l in links:
-    print(l)
     a = scrape_article(l)
+    print(a)
     c.create_articles(2, 1381, [a])
 

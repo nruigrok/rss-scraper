@@ -6,9 +6,11 @@ import time
 
 import feedparser
 
-from rsslib import create_connection
+Article = collections.namedtuple("Article", ["id", "title", "link", "medium", "author", "date", "license"])
 
-Article = collections.namedtuple("Article", ["id", "title", "link", "medium", "author", "date", "licence"])
+def create_connection(database):
+    return sqlite3.connect(database)
+
 
 
 def get_db_ids(conn):
@@ -38,23 +40,27 @@ def get_entries(feed):
     return data2
 
 
-def add_to_database(feed, conn):
-    art = get_entries(feed)
+def add_to_database(art, conn):
     existing_ids = get_db_ids(conn)
     to_insert = [x for x in art if int(x[0]) not in existing_ids]
     logging.info(f"will insert {len(to_insert)} extra articles to database")
     with conn:
         cursor = conn.cursor()
-        cursor.executemany('insert into articles (article_id, title, link, medium, author, date, licence) VALUES (?,?,?,?,?,?,?)', to_insert)
+        cursor.executemany(f'insert into articles (article_id, title, link, medium, author, date, license) VALUES (?, ?,?,?,?,?,?)', to_insert)
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("db", help="Database name")
+    parser.add_argument("url", help="NewsDesk feed URL (https://newsdesk-feeds.moreover.com/...)")
+    args = parser.parse_args()
 
-    url = sys.argv[1]
-    conn = create_connection()
-    logging.info(f"Retrieving articles from {url} ...")
-    feed = feedparser.parse(url)
+    logging.info(f"Retrieving articles into {args.db} from {args.url} ...")
+    conn = create_connection(args.db)
+    feed = feedparser.parse(args.url)
     if feed.bozo:
         raise feed.bozo_exception
-    add_to_database(feed, conn)
+    art = get_entries(feed)
+    add_to_database(art, conn)
