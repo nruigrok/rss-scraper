@@ -40,7 +40,10 @@ def get_articles(f):
             article['url'] = row['url']
             m = re.search(r'\.\w+.\w+', article['url'], re.M)
             med = m.group()
-            article['publisher']=med.replace(".","",1)
+            if "nos.nl" in article['url']:
+                article['publisher']="nos.nl"
+            else:
+                article['publisher']=med.replace(".","",1)
             article['title'] = row['titel']
             article['date'] = row['datum']
             article['author'] = row['auteur']
@@ -53,7 +56,7 @@ from amcatclient import AmcatAPI
 c = AmcatAPI("https://bz.nieuwsmonitor.org")
 scrapers = all_scrapers()
 
-f = "test.csv"
+f = "bz_okt2020.csv"
 articles = get_articles(f)
 for art in articles:
     link = art['url']
@@ -75,6 +78,6 @@ for art in articles:
             raise
     if not art['text']:
         continue
-    c.create_articles(2, 72, [art])
+    c.create_articles(2, 128, [art])
 
 

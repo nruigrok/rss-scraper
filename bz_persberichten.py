@@ -10,7 +10,7 @@ import html2text
 import sys
 from datetime import date
 
-URL_TEMPLATE = "https://www.rijksoverheid.nl/actueel/nieuws?periode-van=01-04-2020&periode-tot=01-05-2020&onderdeel=Ministerie+van+Buitenlandse+Zaken&pagina={page}"
+URL_TEMPLATE = "https://www.rijksoverheid.nl/actueel/nieuws?periode-van=01-04-2020&periode-tot=15-10-2020&onderdeel=Ministerie+van+Buitenlandse+Zaken&pagina={page}"
 URL_ROOT = "https://www.rijksoverheid.nl"
 
 def get_css(tree, selection, text=True, error=True):

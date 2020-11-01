@@ -50,7 +50,7 @@ def scrape_text(session, url):
         # Not a LN url
         raise PublicLink(res.url)
     page = html.fromstring(res.text)
-    text = page.cssselect("section.article_extract *")
+    text = page.cssselect("section.article_extract")
     if not text:
         anf = page.cssselect(".article_not_found")
         if anf:
@@ -58,19 +58,20 @@ def scrape_text(session, url):
             raise ArticleNotFound(message.strip())
         else:
             text = "-"
-           # open("/tmp/check.html", "wb").write(res.content)
-           # raise Exception(f"Could not scrape article from {url} -> {res.url}, written html to /tmp/check.html")
+            open("/tmp/check.html", "wb").write(res.content)
+            raise Exception(f"Could not scrape article from {url} -> {res.url}, written html to /tmp/check.html")
     # add paragraph separators to <br/> tags
     for p in text:
-        text = "\n\n".join(p for p in text)
-   #     if p.xpath(".//br"):
-    #        for br in p.xpath(".//br"):
-     #           br.tail = "\n\n" + br.tail if br.tail else "\n\n"
-      #          text = "\n\n".join(p.text_content() for p in text)
-       # else:
-        #    text = "\n\n".join(p.text_content() for p in text)
-    text = re.sub("\n\n\s*", "\n\n", text)
-    return text
+        text = "\n\n".join(p.text_content() for p in text)
+        #if p.xpath(".//br"):
+         #   for br in p.xpath(".//br"):
+          #      br.tail = "\n\n" + br.tail if br.tail else "\n\n"
+           #     text = "\n\n".join(p for p in text)
+        #else:
+         #   text = "\n\n".join(p for p in text)
+        #text = re.sub("\n\n\s*", "\n\n", text)
+        print(f"QQQQ{text}")
+        return text
 
 
 if __name__ == '__main__':
@@ -99,7 +100,6 @@ if __name__ == '__main__':
         articles = get_articles(conn, where=f"article_id = {args.article}")
     else:
         articles = get_articles(conn)
-
     for i, row in enumerate(articles):
         logging.info(f"[{i+1}/{len(articles)}] Scraping article {row.article_id} from {row.link}")
         try:
