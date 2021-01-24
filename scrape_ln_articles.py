@@ -3,9 +3,12 @@ import re
 from collections import namedtuple
 
 import sqlite3
+from pathlib import Path
+
 from amcatclient import AmcatAPI
 from lxml import html
 import requests
+from requests import Session
 
 
 def get_articles(conn, where="status is null"):
@@ -44,7 +47,12 @@ class PublicLink(Exception):
         super().__init__(link)
 
 
-def scrape_text(session, url):
+def scrape_text(session: Session, url: str) -> str:
+    """
+    Retrieve the text for an articles from lexisnexis
+    Raises PulicLink if article is not in Lexis Nexis db
+    Raises ArticleNotFound if LN says article is not found
+    """
     res = session.get(url)
     if not res.url.startswith("https://www.newsdesk.lexisnexis.com"):
         # Not a LN url
@@ -57,27 +65,17 @@ def scrape_text(session, url):
             message = "\n".join(x.text_content() for x in anf)
             raise ArticleNotFound(message.strip())
         else:
-            text = "-"
             open("/tmp/check.html", "wb").write(res.content)
             raise Exception(f"Could not scrape article from {url} -> {res.url}, written html to /tmp/check.html")
     # add paragraph separators to <br/> tags
-    for p in text:
-        text = "\n\n".join(p.text_content() for p in text)
-        #if p.xpath(".//br"):
-         #   for br in p.xpath(".//br"):
-          #      br.tail = "\n\n" + br.tail if br.tail else "\n\n"
-           #     text = "\n\n".join(p for p in text)
-        #else:
-         #   text = "\n\n".join(p for p in text)
-        #text = re.sub("\n\n\s*", "\n\n", text)
-        print(f"QQQQ{text}")
-        return text
+    text = "\n\n".join(p.text_content() for p in text)
+    return text
 
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("database", help="Name database where articles are stored")
+    parser.add_argument("db", help="Name database where articles are stored", type=Path)
     parser.add_argument("nd_username", help="Newsdesk username")
     parser.add_argument("nd_password", help="Newsdesk password")
     parser.add_argument("hostname", help="AmCAT Server hostname")
@@ -85,12 +83,13 @@ if __name__ == '__main__':
     parser.add_argument("articleset", help="AmCAT Articleset ID", type=int)
     parser.add_argument("--verbose", "-v", help="Verbose (debug) output", action="store_true", default=False)
     parser.add_argument("--article", "-a", help="Scrape a specific article ID", type=int)
-
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
 
-    conn = sqlite3.connect(args.database)
+    if not args.db.exists():
+        raise Exception(f"Database {args.db} does not exist")
+    conn = sqlite3.connect(args.db)
 
     logging.info("Logging in to LN")
     session = login(args.nd_username, args.nd_password)

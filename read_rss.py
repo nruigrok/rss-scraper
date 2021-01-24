@@ -8,13 +8,29 @@ import logging
 import sqlite3
 import sys
 import time
+from pathlib import Path
 
 import feedparser
 
 Article = collections.namedtuple("Article", ["id", "title", "link", "medium", "author", "date", "license"])
 
-def create_connection(database):
-    return sqlite3.connect(database)
+def create_database(database):
+    conn = sqlite3.connect(database)
+    sql = """CREATE TABLE articles (
+    article_id INTEGER,
+    title TEXT,
+    link TEXT,
+    medium TEXT,
+    author TEXT,
+    date TEXT,
+    licence TEXT,
+    status TEXT,
+    public_link TEXT,
+    license text    
+    );"""
+    cur = conn.cursor()
+    cur.execute(sql)
+    return conn
 
 
 
@@ -58,12 +74,17 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("db", help="Database name")
+    parser.add_argument("db", help="Database name", type=Path)
     parser.add_argument("url", help="NewsDesk feed URL (https://newsdesk-feeds.moreover.com/...)")
     args = parser.parse_args()
 
+    if not args.db.exists():
+        logging.info(f"Initializing new database {args.db}")
+        conn = create_database(args.db)
+    else:
+        conn = sqlite3.connect(args.db)
+
     logging.info(f"Retrieving articles into {args.db} from {args.url} ...")
-    conn = create_connection(args.db)
     feed = feedparser.parse(args.url)
     if feed.bozo:
         raise feed.bozo_exception
