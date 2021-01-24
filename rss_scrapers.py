@@ -6,15 +6,21 @@ from requests import HTTPError
 from online_scrapers import all_scrapers
 
 
-def get_text(link):
-    for scraper in scrapers:
+def get_text(link: str) -> str:
+    """
+    Retrieve the text of an article using any of the scrapers from online_scrapers
+    """
+    for scraper in all_scrapers():
         if scraper.can_scrape(link):
             return scraper.scrape_text(link)
     logging.error(f"No scraper available for {link}")
-    return None
+    raise SkipArticle(f"No scraper for {link}")
 
 
 def get_articles(conn, where="status is null", n=100):
+    """
+    Retrieve articles to scrape from local db
+    """
     cur = conn.cursor()
     cur.execute(f"SELECT link as url, title, medium as publisher, date FROM articles where {where} limit {n}")
     colnames = [x[0] for x in cur.description]
@@ -25,7 +31,12 @@ def get_articles(conn, where="status is null", n=100):
 class SkipArticle(Exception):
     pass
 
-def scrape_article(link):
+def scrape_article(article: dict) -> str:
+    """
+    Retrieve the text for an online article using online_scrapers
+    Article should be a dict containing at least a url and title
+    """
+    link = article['url']
     if ('video' in link) or ('redirect' in link) or ('Liveblog' in article['title']):
         raise SkipArticle("Video/redirect/liveblog")
     try:
@@ -42,6 +53,9 @@ def scrape_article(link):
 
 
 def set_status(conn, articles, status='done'):
+    """
+    Upoate the status of the articles in the local db
+    """
     urls = ",".join(f"'{a['url']}'" for a in articles)
     with conn:
         cur = conn.cursor()
@@ -52,7 +66,6 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s %(name)-12s %(level
 
 from amcatclient import AmcatAPI
 c = AmcatAPI("http://localhost:8000")
-scrapers = all_scrapers()
 
 db = "coosto.db"
 conn = sqlite3.connect(db)
@@ -71,7 +84,7 @@ while True:
         logging.info(f"[{i + 1}/{len(articles)}] Scraping article {article['url']}")
         try:
             print(article['url'])
-            article['text'] = scrape_article(article['url'])
+            article['text'] = scrape_article(article)
             to_save.append(article)
         except SkipArticle:
             to_skip.append(article)

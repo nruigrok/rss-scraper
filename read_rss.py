@@ -1,3 +1,8 @@
+"""
+Read article metadata from LexisNexis CSS feed and add to local database
+"""
+
+
 import collections
 import logging
 import sqlite3

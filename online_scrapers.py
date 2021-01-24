@@ -1,3 +1,6 @@
+"""
+Scraper classes that can scrape various online news sources
+"""
 import re
 
 from lxml import html
@@ -203,8 +206,12 @@ class RTLScraper(Scraper):
         return text
 
 
+SCRAPERS = None
+
 def all_scrapers():
-    return [ADScraper(),
+    global SCRAPERS
+    if SCRAPERS is None:
+        SCRAPERS = [ADScraper(),
             NOSScraper(),
             NUScraper(),
             VKScraper(),
@@ -213,5 +220,6 @@ def all_scrapers():
             NRCScraper(),
             TRWScraper(),
             ]
+    return SCRAPERS
 
 

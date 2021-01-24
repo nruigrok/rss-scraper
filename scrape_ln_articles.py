@@ -1,11 +1,11 @@
 import logging
 import re
 from collections import namedtuple
+
+import sqlite3
 from amcatclient import AmcatAPI
 from lxml import html
 import requests
-
-from rsslib import create_connection
 
 
 def get_articles(conn, where="status is null"):
@@ -90,7 +90,8 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format='[%(asctime)s %(name)-12s %(levelname)-5s] %(message)s')
 
-    conn = create_connection(args.database)
+    conn = sqlite3.connect(args.database)
+
     logging.info("Logging in to LN")
     session = login(args.nd_username, args.nd_password)
 
